@@ -2,9 +2,9 @@
 
 `trackthenews` is the script that powers [@FOIAfeed](https://twitter.com/foiafeed), a Twitter bot that monitors news outlets for reporting that incorporates public records laws like the Freedom of Information Act (FOIA), and tweets links to and excerpts from matching articles. The underlying software can track any collection of RSS feeds for any keywords.
 
-If you want to run your own instance of `trackthenews`, you can download and install the package, and run its built-in configuration process. It can be installed with `pip`:
+If you want to run your own instance of `trackthenews`, you can download and instll the package, and run its built-in configuration process. It can be installed with `pip`:
 
-Python 3.6 is recommend, but if you run [into troubles](https://github.com/freedomofpress/trackthenews/issues/1), you may want to try it with Python 2.7.
+Python 3.6 is recommend but if you run [into troubles](https://github.com/thisisparker/track-the-news/issues/1), try it with Python 2.7.
 
 
 ```bash
@@ -15,6 +15,12 @@ or by cloning the GitHub repository and running `setup.py`:
 
 ```bash
 python3 setup.py install
+```
+
+It's helpful to run this command using a virtual environment in order to avoid privilege issues. Options are [VirtualEnv](https://virtualenv.pypa.io/en/stable/) or venv, which is part of the standard Python 3 library.
+
+```bash
+sudo apt-get install -y python3-venv
 ```
 
 Once it is installed, you can create a configuration by running the following command in the appropriate directory:
@@ -31,10 +37,6 @@ python3 trackthenews --config ~/foo/bar/path
 
 That configuration process will create the necessary files and walk you through setting up a Twitter bot for matching stories. After it is configured, you'll need to use a text editor to add the `matchwords` and RSS feeds to their respective files.
 
-Sample RSS feed and matchword files can be found in the project's GitHub repo. The RSS feed file is a JSON array of objects corresponding to each feed. Each object requires a `url` field, and should also have an `outlet` field.
-
-The next two fields are optional: if you know the feed uses redirect URLs, you may set `redirectLinks` to `true` and the script will attempt to follow those redirects to store and tweet canonical URLs; if the feed uses URLs that depend on query- or hash-strings to display correctly—basically, if the content relies on text in the URL bar after a `?` or `#`—you can set `delicateURLs` to `true` and the script will leave the URLs exactly as is.
-
 Once you've got everything set up, you can run the program without the `--config` flag to check for matching articles.
 
 ```bash
@@ -47,7 +49,7 @@ If you designated a custom installation directory, or if you're running it from 
 trackthenews ~/foo/bar/path
 ```
 
-Settings, such as the background color for new posts, the font, and the user-agent, are all located in `config.yaml`, in the designated configuration directory. 
+Settings, such as the background color for new posts, the font, and the user-agent, are all located in `config.yaml`, in the designated configuration directory.
 
 ## How it works
 

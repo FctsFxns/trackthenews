@@ -27,6 +27,9 @@ from PIL import Image, ImageDraw, ImageFont
 from readability import Document
 from twython import Twython, TwythonError
 
+# Adding Postgresql support
+import psycopg2
+
 # TODO: add/remove RSS feeds from within the script.
 # Currently the matchwords list and RSS feeds list must be edited separately.
 # TODO: add support for additional parsers beyond readability
@@ -55,7 +58,7 @@ class Article:
             self.url = res.headers['location'] if 'location' in res.headers \
                 else res.url
 
-        # Some outlets' URLs don't play well with modifications, so those we 
+        # Some outlets' URLs don't play well with modifications, so those we
         # store crufty. Otherwise, decruft with extreme prejudice.
         if not self.delicate:
             self.url = decruft_url(self.url)
@@ -184,7 +187,7 @@ def parse_feed(outlet, url, delicate, redirects):
     for entry in feed['entries']:
         title = entry['title']
         url = entry['link']
-        
+
         article = Article(outlet, title, url, delicate, redirects)
 
         articles.append(article)
@@ -223,7 +226,7 @@ def config_twitter(config):
     twitter = {'api_key': api_key, 'api_secret': api_secret,
             'oauth_token': oauth_token, 'oauth_secret': oauth_secret}
 
-    config['twitter'] = twitter 
+    config['twitter'] = twitter
 
     return config
 
@@ -247,21 +250,21 @@ def setup_db(config):
 def setup_matchlist():
     path = os.path.join(home, 'matchlist.txt')
     path_case_sensitive = os.path.join(home, 'matchlist_case_sensitive.txt')
-    
+
     if os.path.isfile(path):
         print("A matchlist already exists at {path}.".format(**locals()))
     else:
         with open(path, 'w') as f:
             f.write('')
         print("A new matchlist has been generated at {path}. You can add case insensitive entries to match, one per line.".format(**locals()))
-       
+
     if os.path.isfile(path_case_sensitive):
             print("A case-sensitive matchlist already exists at {path_case_sensitive}.".format(**locals()))
     else:
         with open(path_case_sensitive, 'w') as f:
             f.write('')
         print("A new case-sensitive matchlist has been generated at {path_case_sensitive}. You can add case-sensitive entries to match, one per line.".format(**locals()))
-    
+
     return
 
 
@@ -289,7 +292,7 @@ def initial_setup():
         to_configure = input("It looks like this is the first time you've run trackthenews, or you've moved or deleted its configuration files.\nWould you like to create a new configuration in {}? (Y/n) ".format(home))
 
         config = {}
-    
+
         if to_configure.lower() in ['n','no','q','exit','quit']:
             sys.exit("Ok, quitting the program without configuring.")
 
@@ -303,6 +306,7 @@ def initial_setup():
 
     if 'db' not in config:
         config['db'] = 'trackthenews.db'
+        config['db_type'] = 'sqlite'
 
     if 'user-agent' not in config:
         ua = input("What would you like your script's user-agent to be? This should be something that is meaningful to you and may show up in the logs of the sites you are tracking. ")
@@ -338,7 +342,7 @@ def main():
             default=os.path.join(os.getcwd(), 'ttnconfig'))
 
     args = parser.parse_args()
-    
+
     global home
     home = os.path.abspath(args.dir)
 
@@ -359,12 +363,45 @@ def main():
     global ua
     ua = config['user-agent']
 
-    database = os.path.join(home, config['db'])
-    if not os.path.isfile(database):
+    if 'db_type' not in config:
         setup_db(config)
 
-    conn = sqlite3.connect(database, isolation_level='EXCLUSIVE')
-    conn.execute('BEGIN EXCLUSIVE')
+    if config['db_type'] == 'postgresql':
+
+        database = config['db_string']
+
+    	# print the connection string we will use to connect
+        # print("Connecting to database\n	-> %s" % (database))
+
+    	# get a connection, if a connect cannot be made an exception will be raised here
+        try:
+    	    conn = psycopg2.connect(database)
+        except:
+            sys.exit("Can't access to postgresql database. Check connection string.")
+
+        # Set isolation level to READ COMMITTED
+        conn.set_isolation_level(1)
+
+        # conn.cursor will return a cursor object, you can use this cursor to perform queries
+        cursor = conn.cursor()
+        print("Connect to a postgresql database succesfully")
+
+        print("@todo: connect to postgresql Database needs work.");
+        sys.exit("Ok, quitting the program until database support is done.")
+
+
+    else:
+
+        database = os.path.join(home, config['db'])
+        if not os.path.isfile(database):
+            setup_db(config)
+
+        conn = sqlite3.connect(database, isolation_level='EXCLUSIVE')
+        conn.execute('BEGIN EXCLUSIVE')
+
+        print("Connect to a sqllite database succesfully");
+
+
 
     matchlist = os.path.join(home, 'matchlist.txt')
     matchlist_case_sensitive = os.path.join(home, 'matchlist_case_sensitive.txt')
@@ -378,7 +415,7 @@ def main():
         matchwords = [w for w in f.read().split('\n') if w]
     with open(matchlist_case_sensitive, 'r', encoding="utf-8") as f:
         matchwords_case_sensitive = [w for w in f.read().split('\n') if w]
- 
+
     if not (matchwords or matchwords_case_sensitive):
             sys.exit("You must add words to at least one of the matchwords lists, located at {} and {}.".format(matchlist, matchlist_case_sensitive))
 
