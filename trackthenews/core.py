@@ -367,31 +367,27 @@ def main():
         setup_db(config)
 
     if config['db_type'] == 'postgresql':
-
+        # print("@todo: connect to postgresql Database needs work.");
+        # sys.exit("Ok, quitting the program until database support is done.")
         database = config['db_string']
 
     	# print the connection string we will use to connect
-        # print("Connecting to database\n	-> %s" % (database))
+        print("Connecting to database\n	-> %s" % (database))
 
     	# get a connection, if a connect cannot be made an exception will be raised here
         try:
-    	    conn = psycopg2.connect(database)
+    	    postgres = psycopg2.connect(database)
         except:
             sys.exit("Can't access to postgresql database. Check connection string.")
 
         # Set isolation level to READ COMMITTED
-        conn.set_isolation_level(1)
+        postgres.set_isolation_level(1)
 
         # conn.cursor will return a cursor object, you can use this cursor to perform queries
-        cursor = conn.cursor()
+        conn = postgres.cursor()
         print("Connect to a postgresql database succesfully")
 
-        print("@todo: connect to postgresql Database needs work.");
-        sys.exit("Ok, quitting the program until database support is done.")
-
-
     else:
-
         database = os.path.join(home, config['db'])
         if not os.path.isfile(database):
             setup_db(config)
@@ -400,8 +396,6 @@ def main():
         conn.execute('BEGIN EXCLUSIVE')
 
         print("Connect to a sqllite database succesfully");
-
-
 
     matchlist = os.path.join(home, 'matchlist.txt')
     matchlist_case_sensitive = os.path.join(home, 'matchlist_case_sensitive.txt')
@@ -458,8 +452,15 @@ def main():
         deduped = []
 
         for article in articles:
-            article_exists = conn.execute('select * from articles where url = ?',
-                    (article.url,)).fetchall()
+            if config['db_type'] == 'postgresql':
+                # Postgresql
+                conn.execute('select * from articles where url = %s', (article.url,))
+                article_exists = conn.fetchall()
+            else :
+                # sqlite
+                article_exists = conn.execute('select * from articles where url = ?',
+                        (article.url,)).fetchall()
+
             if not article_exists:
                 deduped.append(article)
 
@@ -477,13 +478,21 @@ def main():
                 print("Got one!")
                 article.tweet()
 
-            conn.execute("""insert into articles(
-                         title, outlet, url, tweeted,recorded_at)
-                         values (?, ?, ?, ?, ?)""",
-                         (article.title, article.outlet, article.url,
-                          article.tweeted, datetime.utcnow()))
+            if config['db_type'] == 'postgresql':
+                conn.execute("""insert into articles(
+                             title, outlet, url, tweeted,recorded_at)
+                             values (%s, %s, %s, %s, %s)""",
+                             (article.title, article.outlet, article.url,
+                              article.tweeted, datetime.utcnow()))
+                postgres.commit()
 
-            conn.commit()
+            else:
+                conn.execute("""insert into articles(
+                             title, outlet, url, tweeted,recorded_at)
+                             values (?, ?, ?, ?, ?)""",
+                             (article.title, article.outlet, article.url,
+                              article.tweeted, datetime.utcnow()))
+                conn.commit()
 
             time.sleep(1)
 
